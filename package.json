@@ -1,0 +1,14 @@
+{
+  "name": "seedshare-garden",
+  "version": "1.0.0",
+  "description": "BDF Group Assignment JP-GAI2A-G02 - SeedShare Garden API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  }
+}
