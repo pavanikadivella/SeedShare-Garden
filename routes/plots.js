@@ -1,77 +1,125 @@
 
 const express = require('express');
 const router = express.Router();
+const { getDb } = require('../db/database');
 
-// Get all plots
+// GET all plots
 router.get('/', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Get all plots endpoint',
-      data: []
-    });
+    const db = await getDb();
+    const plots = await db.all('SELECT * FROM plots ORDER BY id ASC');
+    res.status(200).json(plots);
   } catch (error) {
     next(error);
   }
 });
 
-// Search plots by name or soil type
-router.get('/search', async (req, res, next) => {
-  try {
-    const { name, soil_type } = req.query;
-
-    res.status(200).json({
-      message: 'Search plots endpoint',
-      search: { name, soil_type },
-      data: []
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get a plot by ID
+// GET plot by ID
 router.get('/:id', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Get plot by ID endpoint',
-      id: req.params.id
-    });
+    const db = await getDb();
+    const plot = await db.get(
+      'SELECT * FROM plots WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!plot) {
+      return res.status(404).json({
+        error: `Plot ${req.params.id} not found`
+      });
+    }
+
+    res.status(200).json(plot);
   } catch (error) {
     next(error);
   }
 });
 
-// Create a plot
+// POST create plot
 router.post('/', async (req, res, next) => {
   try {
-    res.status(201).json({
-      message: 'Create plot endpoint',
-      data: req.body
-    });
+    const { name, soil } = req.body;
+
+    if (!name || !soil) {
+      return res.status(400).json({
+        error: 'Name and soil are required'
+      });
+    }
+
+    const db = await getDb();
+    const result = await db.run(
+      'INSERT INTO plots (name, soil) VALUES (?, ?)',
+      [name, soil]
+    );
+
+    const created = await db.get(
+      'SELECT * FROM plots WHERE id = ?',
+      [result.lastID]
+    );
+
+    res.status(201).json(created);
   } catch (error) {
     next(error);
   }
 });
 
-// Update a plot
+// PUT update plot
 router.put('/:id', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Update plot endpoint',
-      id: req.params.id,
-      data: req.body
-    });
+    const { name, soil } = req.body;
+    const db = await getDb();
+
+    const existing = await db.get(
+      'SELECT * FROM plots WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!existing) {
+      return res.status(404).json({
+        error: `Plot ${req.params.id} not found`
+      });
+    }
+
+    if (!name || !soil) {
+      return res.status(400).json({
+        error: 'Name and soil are required'
+      });
+    }
+
+    await db.run(
+      'UPDATE plots SET name = ?, soil = ? WHERE id = ?',
+      [name, soil, req.params.id]
+    );
+
+    const updated = await db.get(
+      'SELECT * FROM plots WHERE id = ?',
+      [req.params.id]
+    );
+
+    res.status(200).json(updated);
   } catch (error) {
     next(error);
   }
 });
 
-// Delete a plot
+// DELETE plot
 router.delete('/:id', async (req, res, next) => {
   try {
+    const db = await getDb();
+
+    const result = await db.run(
+      'DELETE FROM plots WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({
+        error: `Plot ${req.params.id} not found`
+      });
+    }
+
     res.status(200).json({
-      message: 'Delete plot endpoint',
-      id: req.params.id
+      message: `Plot ${req.params.id} deleted successfully`
     });
   } catch (error) {
     next(error);

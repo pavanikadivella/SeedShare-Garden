@@ -1,62 +1,137 @@
 
 const express = require('express');
 const router = express.Router();
+const { getDb } = require('../db/database');
 
-// Get all gardeners
+// GET all gardeners
 router.get('/', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Get all gardeners endpoint',
-      data: []
-    });
+    const db = await getDb();
+    const gardeners = await db.all(
+      'SELECT * FROM gardeners ORDER BY id ASC'
+    );
+    res.status(200).json(gardeners);
   } catch (error) {
     next(error);
   }
 });
 
-// Get a gardener by ID
+// GET gardener by ID
 router.get('/:id', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Get gardener by ID endpoint',
-      id: req.params.id
-    });
+    const db = await getDb();
+    const gardener = await db.get(
+      'SELECT * FROM gardeners WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!gardener) {
+      return res.status(404).json({
+        error: `Gardener ${req.params.id} not found`
+      });
+    }
+
+    res.status(200).json(gardener);
   } catch (error) {
     next(error);
   }
 });
 
-// Create a gardener
+// POST create gardener
 router.post('/', async (req, res, next) => {
   try {
-    res.status(201).json({
-      message: 'Create gardener endpoint',
-      data: req.body
-    });
+    const { name, email } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({
+        error: 'Name and email are required'
+      });
+    }
+
+    const db = await getDb();
+    const result = await db.run(
+      'INSERT INTO gardeners (name, email) VALUES (?, ?)',
+      [name, email]
+    );
+
+    const created = await db.get(
+      'SELECT * FROM gardeners WHERE id = ?',
+      [result.lastID]
+    );
+
+    res.status(201).json(created);
   } catch (error) {
+    if (error.message.includes('UNIQUE')) {
+      return res.status(409).json({
+        error: 'A gardener with that email already exists'
+      });
+    }
     next(error);
   }
 });
 
-// Update a gardener
+// PUT update gardener
 router.put('/:id', async (req, res, next) => {
   try {
-    res.status(200).json({
-      message: 'Update gardener endpoint',
-      id: req.params.id,
-      data: req.body
-    });
+    const { name, email } = req.body;
+    const db = await getDb();
+
+    const existing = await db.get(
+      'SELECT * FROM gardeners WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!existing) {
+      return res.status(404).json({
+        error: `Gardener ${req.params.id} not found`
+      });
+    }
+
+    if (!name || !email) {
+      return res.status(400).json({
+        error: 'Name and email are required'
+      });
+    }
+
+    await db.run(
+      'UPDATE gardeners SET name = ?, email = ? WHERE id = ?',
+      [name, email, req.params.id]
+    );
+
+    const updated = await db.get(
+      'SELECT * FROM gardeners WHERE id = ?',
+      [req.params.id]
+    );
+
+    res.status(200).json(updated);
   } catch (error) {
+    if (error.message.includes('UNIQUE')) {
+      return res.status(409).json({
+        error: 'A gardener with that email already exists'
+      });
+    }
     next(error);
   }
 });
 
-// Delete a gardener
+// DELETE gardener
 router.delete('/:id', async (req, res, next) => {
   try {
+    const db = await getDb();
+
+    const result = await db.run(
+      'DELETE FROM gardeners WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({
+        error: `Gardener ${req.params.id} not found`
+      });
+    }
+
     res.status(200).json({
-      message: 'Delete gardener endpoint',
-      id: req.params.id
+      message: `Gardener ${req.params.id} deleted successfully`
     });
   } catch (error) {
     next(error);
