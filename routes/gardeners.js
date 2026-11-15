@@ -1,57 +1,55 @@
-
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
+const { parseId, validateGardener } = require('../middleware/validate');
 
-// GET all gardeners
 router.get('/', async (req, res, next) => {
   try {
     const db = await getDb();
-    const gardeners = await db.all(
-      'SELECT * FROM gardeners ORDER BY id ASC'
-    );
+    const gardeners = await db.all('SELECT * FROM gardeners');
     res.status(200).json(gardeners);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// GET gardener by ID
 router.get('/:id', async (req, res, next) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({
+      error: 'id must be a positive whole number'
+    });
+
     const db = await getDb();
     const gardener = await db.get(
-      'SELECT * FROM gardeners WHERE id = ?',
-      [req.params.id]
+      'SELECT * FROM gardeners WHERE id = ?', [id]
     );
 
     if (!gardener) {
       return res.status(404).json({
-        error: `Gardener ${req.params.id} not found`
+        error: `Gardener ${id} not found`
       });
     }
 
     res.status(200).json(gardener);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// POST create gardener
 router.post('/', async (req, res, next) => {
   try {
-    const { name, email } = req.body;
+    const problem = validateGardener(req.body);
 
-    if (!name || !email) {
-      return res.status(400).json({
-        error: 'Name and email are required'
-      });
+    if (problem) {
+      return res.status(400).json({ error: problem });
     }
 
     const db = await getDb();
+
     const result = await db.run(
       'INSERT INTO gardeners (name, email) VALUES (?, ?)',
-      [name, email]
+      [req.body.name.trim(), req.body.email.trim()]
     );
 
     const created = await db.get(
@@ -60,120 +58,13 @@ router.post('/', async (req, res, next) => {
     );
 
     res.status(201).json(created);
-  } catch (error) {
-    if (error.message.includes('UNIQUE')) {
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE')) {
       return res.status(409).json({
         error: 'A gardener with that email already exists'
       });
     }
-    next(error);
-  }
-});
-
-// PUT update gardener
-router.put('/:id', async (req, res, next) => {
-  try {
-    const { name, email } = req.body;
-    const db = await getDb();
-
-    const existing = await db.get(
-      'SELECT * FROM gardeners WHERE id = ?',
-      [req.params.id]
-    );
-
-    if (!existing) {
-      return res.status(404).json({
-        error: `Gardener ${req.params.id} not found`
-      });
-    }
-
-    if (!name || !email) {
-      return res.status(400).json({
-        error: 'Name and email are required'
-      });
-    }
-
-    await db.run(
-      'UPDATE gardeners SET name = ?, email = ? WHERE id = ?',
-      [name, email, req.params.id]
-    );
-
-    const updated = await db.get(
-      'SELECT * FROM gardeners WHERE id = ?',
-      [req.params.id]
-    );
-
-    res.status(200).json(updated);
-  } catch (error) {
-    if (error.message.includes('UNIQUE')) {
-      return res.status(409).json({
-        error: 'A gardener with that email already exists'
-      });
-    }
-    next(error);
-  }
-});
-
-// DELETE gardener
-router.delete('/:id', async (req, res, next) => {
-  try {
-    const db = await getDb();
-
-    const result = await db.run(
-      'DELETE FROM gardeners WHERE id = ?',
-      [req.params.id]
-    );
-
-    if (result.changes === 0) {
-      return res.status(404).json({
-        error: `Gardener ${req.params.id} not found`
-      });
-    }
-
-    res.status(200).json({
-      message: `Gardener ${req.params.id} deleted successfully`
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET all leased plots for a specific gardener (Relational JOIN endpoint) — Added by A. Himaja
-router.get('/:id/leases', async (req, res, next) => {
-  try {
-    const db = await getDb();
-
-    const gardener = await db.get(
-      'SELECT id, name, email FROM gardeners WHERE id = ?',
-      [req.params.id]
-    );
-
-    if (!gardener) {
-      return res.status(404).json({
-        error: `Gardener ${req.params.id} not found`
-      });
-    }
-
-    const leasedPlots = await db.all(
-      `SELECT
-        leases.id AS lease_id,
-        leases.start_date,
-        plots.id AS plot_id,
-        plots.name AS plot_name,
-        plots.soil AS plot_soil
-      FROM leases
-      JOIN plots ON leases.plot_id = plots.id
-      WHERE leases.gardener_id = ?
-      ORDER BY leases.id ASC`,
-      [req.params.id]
-    );
-
-    res.status(200).json({
-      gardener,
-      leases: leasedPlots
-    });
-  } catch (error) {
-    next(error);
+    next(err);
   }
 });
 
