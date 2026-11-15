@@ -138,4 +138,43 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
+// GET all leased plots for a specific gardener (Relational JOIN endpoint) — Added by A. Himaja
+router.get('/:id/leases', async (req, res, next) => {
+  try {
+    const db = await getDb();
+
+    const gardener = await db.get(
+      'SELECT id, name, email FROM gardeners WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!gardener) {
+      return res.status(404).json({
+        error: `Gardener ${req.params.id} not found`
+      });
+    }
+
+    const leasedPlots = await db.all(
+      `SELECT
+        leases.id AS lease_id,
+        leases.start_date,
+        plots.id AS plot_id,
+        plots.name AS plot_name,
+        plots.soil AS plot_soil
+      FROM leases
+      JOIN plots ON leases.plot_id = plots.id
+      WHERE leases.gardener_id = ?
+      ORDER BY leases.id ASC`,
+      [req.params.id]
+    );
+
+    res.status(200).json({
+      gardener,
+      leases: leasedPlots
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
