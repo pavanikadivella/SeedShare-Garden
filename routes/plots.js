@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
@@ -30,6 +29,53 @@ router.get('/:id', async (req, res, next) => {
     }
 
     res.status(200).json(plot);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET lease status & assigned gardener for a specific plot (Relational JOIN) — Added by A. Himaja
+router.get('/:id/lease', async (req, res, next) => {
+  try {
+    const db = await getDb();
+
+    const plot = await db.get(
+      'SELECT * FROM plots WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!plot) {
+      return res.status(404).json({
+        error: `Plot ${req.params.id} not found`
+      });
+    }
+
+    const leaseInfo = await db.get(
+      `SELECT
+        leases.id AS lease_id,
+        leases.start_date,
+        gardeners.id AS gardener_id,
+        gardeners.name AS gardener_name,
+        gardeners.email AS gardener_email
+      FROM leases
+      JOIN gardeners ON leases.gardener_id = gardeners.id
+      WHERE leases.plot_id = ?`,
+      [req.params.id]
+    );
+
+    if (!leaseInfo) {
+      return res.status(200).json({
+        plot,
+        status: 'Available',
+        lease: null
+      });
+    }
+
+    res.status(200).json({
+      plot,
+      status: 'Leased',
+      lease: leaseInfo
+    });
   } catch (error) {
     next(error);
   }
