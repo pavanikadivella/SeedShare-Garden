@@ -1,0 +1,120 @@
+{
+  "info": {
+    "name": "SeedShare Garden API (JP-GAI2A-G02)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "1. Plots CRUD, Validation & Soil Search",
+      "item": [
+        {
+          "name": "Get all plots",
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots" }
+        },
+        {
+          "name": "Get one plot",
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots/1" }
+        },
+        {
+          "name": "Search plots by soil query",
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots?soil=loam" }
+        },
+        {
+          "name": "Add valid plot (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\": \"North Bed D4\", \"soil\": \"Silt\"}" },
+            "url": "{{baseUrl}}/plots"
+          }
+        },
+        {
+          "name": "Add plot missing soil (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\": \"Broken Plot\"}" },
+            "url": "{{baseUrl}}/plots"
+          }
+        },
+        {
+          "name": "Update plot (200)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\": \"North Bed D4 Updated\", \"soil\": \"Rich Loam\"}" },
+            "url": "{{baseUrl}}/plots/4"
+          }
+        },
+        {
+          "name": "Delete plot (200)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/plots/4" }
+        }
+      ]
+    },
+    {
+      "name": "2. Leases Join Endpoint",
+      "item": [
+        {
+          "name": "Get leases with gardener name and plot name",
+          "request": { "method": "GET", "url": "{{baseUrl}}/leases" }
+        }
+      ]
+    },
+    {
+      "name": "3. Twist - Smart Search",
+      "item": [
+        {
+          "name": "Test 1 - ?q=plot (200, matches)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Matches returned', () => pm.expect(pm.response.json().plots.length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots?q=plot" }
+        },
+        {
+          "name": "Test 2 - ?q=PLOT (200, same result)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Case-insensitive match', () => pm.expect(pm.response.json().plots.length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots?q=PLOT" }
+        },
+        {
+          "name": "Test 3 - ?q=zzz (200, empty, Nothing found)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Empty plots list', () => pm.expect(body.plots).to.eql([]));",
+                  "pm.test('Message is Nothing found', () => pm.expect(body.message).to.eql('Nothing found'));"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/plots?q=zzz" }
+        }
+      ]
+    }
+  ]
+}
