@@ -261,6 +261,20 @@ The REST API endpoints can be tested using:
 - Browser (for GET requests)
 
 Test the GET, POST, PUT, and DELETE operations supported by the project.
+## Live Deployment
+
+The SeedShare Garden Management System is deployed using Render.
+
+**Live API URL:** https://seedshare-garden.onrender.com
+
+**Available API Endpoints:**
+- `/gardeners` – Manage gardeners
+- `/plots` – Manage garden plots
+- `/leases` – Manage plot leases
+
+**Deployment Platform:** Render
+
+**Repository:** https://github.com/pavanikadivella/SeedShare-Garden
 
 ## 12. Team Information
 
